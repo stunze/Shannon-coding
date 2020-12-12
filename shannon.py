@@ -1,4 +1,6 @@
 
+#viskas bus gera Zivile, susigaudysi
+
 def read_input_from_file(filename: list) -> str:
     try:
         with open(filename, mode='r') as file:  # reading characters from file

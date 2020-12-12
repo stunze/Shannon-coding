@@ -1,5 +1,5 @@
 
-#viskas bus gera Zivile, susigaudysi
+#viskas bus gerai Zivile, susigaudysi
 
 def read_input_from_file(filename: list) -> str:
     try:

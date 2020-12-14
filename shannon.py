@@ -22,6 +22,7 @@ def write_output_to_file(text: str, filename: str) -> bool:
         print("Failas nerastas.")
     return False
 
+
 def probability_table(word: list) -> dict:
     differentValues = (word)
     probTable = {}
@@ -61,7 +62,7 @@ def to_binary_table(probTable: dict) -> dict:
     binaryTable = {}
     for key, value in probTable.items():
         bit_len = length_of_bin_from_prob(value)
-        bits =  float_to_bin(sum, bit_len)
+        bits = float_to_bin(sum, bit_len)
         binaryTable.update({key: bits})  # format(<the_integer>, "<0><width_of_string><format_specifier>")
         sum += value
     return binaryTable

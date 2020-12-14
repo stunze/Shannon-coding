@@ -4,7 +4,7 @@ from bitarray import bitarray
 Base = 2
 
 
-def read_input_from_file(filename: list) -> str:
+def read_input_from_file(filename: str) -> str:
     try:
         with open(filename, mode='r') as file:  # reading characters from file
             word = file.read()
@@ -12,6 +12,15 @@ def read_input_from_file(filename: list) -> str:
     except OSError:
         print("Failas nerastas.")
 
+
+def write_output_to_file(text: str, filename: str) -> bool:
+    try:
+        with open(filename, mode='w') as file:  # reading characters from file
+            file.write(text)
+        return True
+    except OSError:
+        print("Failas nerastas.")
+    return False
 
 def probability_table(word: list) -> dict:
     differentValues = (word)
@@ -58,8 +67,10 @@ def to_binary_table(probTable: dict) -> dict:
     return binaryTable
 
 
+
 if __name__ == '__main__':
     word = read_input_from_file("test.txt")
     table = probability_table(word)
     bTable = to_binary_table(table)
     print(bTable)
+    write_output_to_file("vasara atejo ir prasidejo", "answer.txt")

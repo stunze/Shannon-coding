@@ -67,10 +67,26 @@ def to_binary_table(probTable: dict) -> dict:
     return binaryTable
 
 
+def word_to_bin(word: str, binDict : dict) -> bitarray:
+    bits = bitarray()
+    for c in word:
+        c_bits = binDict.get(c)
+        bits += c_bits
+
+    return bits
+
+
+def shannon_encoder(inputFile: str, outputFile: str):
+    word = read_input_from_file(inputFile)
+    table_of_probabilities = probability_table(word)
+    table_of_binary_values = to_binary_table(table_of_probabilities)
+    text_in_binary = word_to_bin(word, table_of_binary_values)
+    print(word)
+    print(table_of_binary_values)
+    print(text_in_binary)
+    write_output_to_file("vasara atejo ir prasidejo", outputFile)
+
+
 
 if __name__ == '__main__':
-    word = read_input_from_file("test.txt")
-    table = probability_table(word)
-    bTable = to_binary_table(table)
-    print(bTable)
-    write_output_to_file("vasara atejo ir prasidejo", "answer.txt")
+    shannon_encoder("test.txt", "answer.txt")

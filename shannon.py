@@ -51,8 +51,9 @@ def to_binary_table(probTable: dict) -> dict:
     sum = 0
     binaryTable = {}
     for key, value in probTable.items():
-        # neveikia, reikia papildomo algoritmo
-        binaryTable.update({key: format(sum, "08b")})  # format(<the_integer>, "<0><width_of_string><format_specifier>")
+        bit_len = length_of_bin_from_prob(value)
+        bits =  float_to_bin(sum, bit_len)
+        binaryTable.update({key: bits})  # format(<the_integer>, "<0><width_of_string><format_specifier>")
         sum += value
     return binaryTable
 

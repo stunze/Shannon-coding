@@ -117,11 +117,45 @@ def shannon_encoder(inputFile: str, outputFile: str):
 
     table_of_binary_values = to_binary_table(table_of_probabilities, len(word))
     text_in_binary = word_to_bin(word, table_of_binary_values)
-    # print(word)
+
     print(table_of_binary_values)
-    # print(text_in_binary)
+
     prepare_to_write(table_of_binary_values, text_in_binary)
     write_output_to_file(table_of_binary_values, text_in_binary, outputFile)
+
+
+    def read_from_bin(input_file: str, output_file: str):
+    """Decompresses the data and writes it out to the output file"""
+    try:
+        with open(input_file, "rb") as input_stream, open(output_file, "wb") as output_stream:
+            # read the size of encoded table 2B 16 bits
+            size_of_encoded_table = int.from_bytes(input_stream.read(2), "big") #kazkodel size gaunasi iki failo galo...
+
+            # read the size of encoded table padding 1B
+            table_padding = int.from_bytes(input_stream.read(1), "big")
+
+            encoded_table = ""
+            for byte in input_stream.read(size_of_encoded_table):
+                encoded_table += f"{bin(byte)[2:]:0>8}"
+            encoded_table = encoded_table[table_padding+1:] #cia reik +1 kazkodel pridet ir pastumt
+            print(encoded_table)
+
+            """Writes out the data in string as a byte arrays"""
+
+            print(len(encoded_table))
+            for i in range(0, len(encoded_table)+20, 20): #o cia + 20 bituku (tie 5 baitai)
+                #o kas cia per nesamone gaunas as nezinau
+                print(chr(int(encoded_table[i:i+8], 2)))
+                print(chr(int(encoded_table[i+8:i+12], 2)))
+                print(chr(int(encoded_table[i+12:i+20], 2)))
+                #print(symbol_array)
+                #length_array.append(int(encoded_table[i+8:i+12], 2))
+                #code_array.append(int(encoded_table[i+12:i+20], 2))
+            #.....
+            #.....
+
+    except OSError:
+        print("Failas nerastas.")
 
 
 if __name__ == '__main__':

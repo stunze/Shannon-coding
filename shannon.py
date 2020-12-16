@@ -1,3 +1,5 @@
+import sys
+
 from bitarray import bitarray
 
 Base = 2
@@ -80,25 +82,23 @@ def write_output_to_file(table: dict, text: bitarray, filename: str) -> bool:
 
             for k, v in table.items():
                 total_bits += 2 * Byte + len(v)
-                tableDataToBitArray += bitarray(format(ord(k), 'b'))
+                tableDataToBitArray += bitarray(format(ord(k), '016b'))
                 tableDataToBitArray += v
 
 
 
             diff = 0 + total_bits % 8
-            print(int((total_bits - diff) / Byte))
             tableSize = bitarray(f'{int((total_bits - diff) / Byte):016b}')
             tableSizepadding = bitarray(f'{diff:08b}')
             extraZeros = bitarray(diff * '0')
+
 
 
             tableSize.tofile(file)
             tableSizepadding.tofile(file)
             extraZeros.tofile(file)
             tableDataToBitArray.tofile(file)
-
             text.tofile(file)
-
 
             return True
 

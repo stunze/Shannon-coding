@@ -40,16 +40,17 @@ def length_of_bin_from_freq(frequency: int, data_len: int) -> int:
     return counter
 
 
-def int_to_bin(value: float, length: int, dataSize: int) -> bitarray:
-    bits = bitarray()
+def int_to_bin(value: float, length: int, dataSize: int) -> str:
+    bits = ""
     newNum = value
     for i in range(0, length):
         newNum *= 2
         if newNum > dataSize:
-            bits.append(True)
+            bits += '1'
             newNum -= dataSize
         else:
-            bits.append(False)
+            bits += '0'
+
     return bits
 
 
@@ -64,8 +65,8 @@ def to_binary_table(probTable: dict, dataSize: int) -> dict:
     return binaryTable
 
 
-def word_to_bin(word: str, binDict: dict) -> bitarray:
-    bits = bitarray()
+def word_to_bin(word: str, binDict: dict) -> str:
+    bits = ""
     for c in word:
         c_bits = binDict.get(c)
         bits += c_bits
@@ -73,32 +74,31 @@ def word_to_bin(word: str, binDict: dict) -> bitarray:
     return bits
 
 
-def write_output_to_file(table: dict, text: bitarray, filename: str) -> bool:
+def write_output_to_file(table: dict, text: str, filename: str) -> bool:
     try:
         with open(filename, mode='wb') as file:  # reading characters from file
-            list_of_entries = list(table.values())
-            total_bits = 0
-            tableDataToBitArray = bitarray()
+
+            tableDataToString = ""
 
             for k, v in table.items():
-                total_bits += 2 * Byte + len(v)
-                tableDataToBitArray += bitarray(format(ord(k), '016b'))
-                tableDataToBitArray += v
+                tableDataToString += "".join(format(ord(k), '016b'))
+                tableDataToString += v
 
+            total_bits = len(tableDataToString)
 
+            diff = 8 - total_bits % 8
 
-            diff = 0 + total_bits % 8
-            tableSize = bitarray(f'{int((total_bits - diff) / Byte):016b}')
+            tableSize = bitarray(f'{int((total_bits + diff) / Byte):016b}')
+
             tableSizepadding = bitarray(f'{diff:08b}')
-            extraZeros = bitarray(diff * '0')
 
+            tableWithExtraZeros = diff * '0' + tableDataToString
 
-
+            print(tableWithExtraZeros)
             tableSize.tofile(file)
             tableSizepadding.tofile(file)
-            extraZeros.tofile(file)
-            tableDataToBitArray.tofile(file)
-            text.tofile(file)
+            bitarray(tableWithExtraZeros).tofile(file)
+            bitarray(text).tofile(file)
 
             return True
 
@@ -118,16 +118,17 @@ def shannon_encoder(inputFile: str, outputFile: str):
     table_of_binary_values = to_binary_table(table_of_probabilities, len(word))
     text_in_binary = word_to_bin(word, table_of_binary_values)
 
-    print(table_of_binary_values)
-
     prepare_to_write(table_of_binary_values, text_in_binary)
     write_output_to_file(table_of_binary_values, text_in_binary, outputFile)
+    read_from_bin(outputFile, "antras.txt")
 
 
-    def read_from_bin(input_file: str, output_file: str):
+def read_from_bin(input_file: str, output_file: str):
     """Decompresses the data and writes it out to the output file"""
     try:
         with open(input_file, "rb") as input_stream, open(output_file, "wb") as output_stream:
+
+
             # read the size of encoded table 2B 16 bits
             size_of_encoded_table = int.from_bytes(input_stream.read(2), "big") #kazkodel size gaunasi iki failo galo...
 
@@ -135,10 +136,14 @@ def shannon_encoder(inputFile: str, outputFile: str):
             table_padding = int.from_bytes(input_stream.read(1), "big")
 
             encoded_table = ""
+
             for byte in input_stream.read(size_of_encoded_table):
                 encoded_table += f"{bin(byte)[2:]:0>8}"
-            encoded_table = encoded_table[table_padding+1:] #cia reik +1 kazkodel pridet ir pastumt
+
             print(encoded_table)
+            encoded_table = encoded_table[table_padding:] #NEBEREIK cia reik +1 kazkodel pridet ir pastumt
+
+
 
             """Writes out the data in string as a byte arrays"""
 
@@ -148,9 +153,9 @@ def shannon_encoder(inputFile: str, outputFile: str):
                 print(chr(int(encoded_table[i:i+8], 2)))
                 print(chr(int(encoded_table[i+8:i+12], 2)))
                 print(chr(int(encoded_table[i+12:i+20], 2)))
-                #print(symbol_array)
-                #length_array.append(int(encoded_table[i+8:i+12], 2))
-                #code_array.append(int(encoded_table[i+12:i+20], 2))
+                # print(symbol_array)
+                # length_array.append(int(encoded_table[i+8:i+12], 2))
+                # code_array.append(int(encoded_table[i+12:i+20], 2))
             #.....
             #.....
 

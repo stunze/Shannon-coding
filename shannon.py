@@ -136,28 +136,14 @@ def read_from_bin(input_file: str, output_file: str):
             table_padding = int.from_bytes(input_stream.read(1), "big")
 
             encoded_table = ""
+            #encoded_table = bitarray()               is esmes kol kas jokio skirtumo kur laikom
+            for bit in input_stream.read(size_of_encoded_table):
+                encoded_table += f"{bin(bit)[2:]:0>8}"
+            encoded_table = encoded_table[table_padding:]
+            print(type(encoded_table))
 
-            for byte in input_stream.read(size_of_encoded_table):
-                encoded_table += f"{bin(byte)[2:]:0>8}"
-
-            print(encoded_table)
-            encoded_table = encoded_table[table_padding:] #NEBEREIK cia reik +1 kazkodel pridet ir pastumt
-
-
-
-            """Writes out the data in string as a byte arrays"""
-
-            print(len(encoded_table))
-            for i in range(0, len(encoded_table)+20, 20): #o cia + 20 bituku (tie 5 baitai)
-                #o kas cia per nesamone gaunas as nezinau
-                print(chr(int(encoded_table[i:i+8], 2)))
-                print(chr(int(encoded_table[i+8:i+12], 2)))
-                print(chr(int(encoded_table[i+12:i+20], 2)))
-                # print(symbol_array)
-                # length_array.append(int(encoded_table[i+8:i+12], 2))
-                # code_array.append(int(encoded_table[i+12:i+20], 2))
-            #.....
-            #.....
+            for i in range(0, len(encoded_table), 40):
+                ascii_string = "".join([str(int(binary, 2)) for binary in encoded_table[i:i+16]            
 
     except OSError:
         print("Failas nerastas.")
@@ -165,3 +151,4 @@ def read_from_bin(input_file: str, output_file: str):
 
 if __name__ == '__main__':
     shannon_encoder("test.txt", "answer.bin")
+    read_from_bin("answer.bin", "antras.txt")

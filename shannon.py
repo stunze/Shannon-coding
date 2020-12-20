@@ -5,10 +5,17 @@ Byte = 8
 
 
 def read_input_from_file(filename: str) -> str:
+    bits = ""
     try:
-        with open(filename, mode='r') as file:  # reading characters from file
-            word = file.read()
-        return word
+        with open(filename, mode='rb') as input_stream:  # reading characters from file
+            while True:  # --> replaced `file` with `True` to be clear
+                dataByte = input_stream.read(1)
+                if not dataByte:  # empty => EOF
+                    # OR   if len(data) < 4: if you don't want last incomplete chunk
+                    break
+                bits += '{:08b}'.format(ord(dataByte))
+                # process data
+        return bits
     except OSError:
         print("Failas nerastas.")
 
@@ -103,7 +110,7 @@ def shannon_encoder(inputFile: str, outputFile: str, chunk: int):
     text = read_input_from_file(inputFile)
 
     # Paverciame viska i bitus
-    bitText = text_to_binary(text)
+    bitText = read_input_from_file(inputFile)
 
     # Gauname teksto paddinga
     padding = get_padding_size(bitText, chunk)
@@ -166,8 +173,9 @@ def write_binary_to_file(table: dict, text: str, chunkSize: int, padding: int, f
 
 
 def write_text_to_file(output_file: str, text: str) -> bool:
+
     try:
-        with open(output_file, "w") as output_stream:
+        with open(output_file, "wb") as output_stream:
             output_stream.write(text)
         return True
     except OSError:
@@ -226,8 +234,16 @@ def read_from_bin(input_file: str, output_file: str):
             print(binary_text[textPadding + symbolPadding:textPadding + symbolPadding:+24])
             decoded_text = data_to_text(decoded_table, binary_text[2*Byte + textPadding:])
             print("Po dekodavimo: ", len(binary_text[2*Byte + textPadding:]))
-            text = binary_to_char(decoded_text)
-            write_text_to_file(output_file, decoded_text)
+            #print(binary_to_char(decoded_text))
+            #write_text_to_file(output_file, decoded_text)
+            try:
+                with open("img.jpg", "wb") as output_stream:
+                    bitarray(decoded_text).tofile(output_stream)
+                return True
+            except OSError:
+                print("Failas nerastas")
+            return False
+
 
     except OSError:
         print("Failas nerastas.")
@@ -268,4 +284,4 @@ def binary_to_char(bitText: str) -> str:
 
 
 if __name__ == '__main__':
-    shannon_encoder("test.txt", "encoded.bin", 16)
+    shannon_encoder("test2.jpg", "encoded.shanon", 8)

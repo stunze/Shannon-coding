@@ -1,93 +1,97 @@
-from binarytree import Node
 from bitarray import bitarray
+from binarytree import Node
+
 Base = 2
 Byte = 8
 
-
-def shannon_decoder(inputFile, outputFile):
-    binary_table, binary_text, chunk = read_from_bin(inputFile)
-
-    decoded_table = data_to_dictionary(binary_table, chunk)
-    print("be sutvarkymu", binary_text)
-    symbolPadding = int(binary_text[0:Byte], 2)
-    print("simbolio paddingas", symbolPadding)
-    text_padding = int(binary_text[-Byte:], 2)
-    print("texto paddingas", text_padding)
-    print(binary_text[2 * Byte+symbolPadding:-text_padding])
-    decoded_text = data_to_text(binary_text[Byte:-text_padding-Byte], decoded_table)
-    print("dekoduotas", decoded_text)
-
-    write_text_to_file(outputFile, decoded_text[:-symbolPadding])
-
-
-def write_text_to_file(output_file: str, text: str) -> bool:
-    try:
-        with open(output_file, "wb") as output_stream:
-            bitarray(text).tofile(output_stream)
-        return True
-    except OSError:
-        print("Failas nerastas")
-    return False
 
 def read_from_bin(input_file: str):
     """Decompresses the data and writes it out to the output file"""
     try:
         with open(input_file, "rb") as input_stream:
             # read the size of encoded table 2B 16 bits
+            buffer = bitarray()
+            buffer.frombytes(input_stream.read(5))
+            header = buffer.to01()
+            # print(header)
 
-            size_of_encoded_table = int.from_bytes(input_stream.read(2), "big")
+            chunk = int(header[:4], 2) + 1
 
-            chunk = int.from_bytes(input_stream.read(1), "big")
+            startPosition = 4
+            numberOfEntries = int(header[startPosition:startPosition + chunk], 2) + 1
 
-            table_padding = int.from_bytes(input_stream.read(1), "big")
+            startPosition += chunk
+            symbolPadding = int(header[startPosition:startPosition + 4], 2)
 
-            data = ""
+            startPosition += 4
+            dataPadding = int(header[startPosition:startPosition + 3], 2)
 
-            while True:
-                dataByte = input_stream.read(1)
-                if not dataByte:
-                    break
-                data += '{:08b}'.format(ord(dataByte))
-                # process data
+            startPosition += 3 + dataPadding
+            data = header[startPosition:]
 
-            binary_table = data[table_padding:size_of_encoded_table * Byte]
+            # print(header)
+            # print(chunk)
+            # print(numberOfEntries)
+            # print(symbolPadding)
+            # print(dataPadding)
 
-            binary_text = data[size_of_encoded_table * Byte:]
+            del buffer[:]
+            buffer.frombytes(input_stream.read())
+            data += buffer.to01()
+            # print(data[0:200])
+            symbol = ""
+            dictionary = {}
+            currPosition = 0
+            print("Duomenys perskaityti")
+            for index in range(0, numberOfEntries):
+                symbol = data[currPosition: currPosition + chunk]
+                currPosition += chunk
+                size_bits = int(data[currPosition: currPosition + Byte], 2)
+                currPosition += Byte
+                bits = data[currPosition:currPosition + size_bits]
+                dictionary.update({bits: symbol})
+                data = data[currPosition + size_bits:]
+                currPosition = 0
 
-            return binary_table, binary_text, chunk
+            print("Lentele sudaryta")
+            return dictionary, data, symbolPadding
 
     except OSError:
         print("Failas nerastas.")
 
 
-def data_to_dictionary(bitText: str, chunk: int) -> dict:
-    dictionary = {}
-    i = 0
-    while i < len(bitText):
-        symbol = bitText[i:i + chunk]
-        size_bits = int(bitText[i + chunk: i + chunk + Byte], 2)
-        bits = bitText[i + chunk + Byte:i + chunk + Byte + size_bits]
-        dictionary.update({bits: symbol})
-        i += chunk + Byte + size_bits
+def shannon_decoder(inputFile, outputFile):
+    decoded_table, binary_text, symbol_padding = read_from_bin(inputFile)
 
-    return dictionary
+    decoded_text = data_to_text(binary_text, decoded_table)
+    print("Dekoduotas tekstas")
+
+    if symbol_padding != 0:
+        write_text_to_file(decoded_text[:-symbol_padding], outputFile)
+
+    else:
+        write_text_to_file(decoded_text, outputFile)
+
+    print("Dekoduota")
 
 
 def data_to_text(encoded_data: str, dictionary: dict) -> str:
     symbol = ""
     decoded_text = ""
     root = build_binary_tree(dictionary)
-    print(root)
+    print("Sudarytas medis")
+    currRoot = root
     for bit in encoded_data:
+        currRoot = bts(currRoot, bit)
         symbol += bit
-        if bts(root, symbol):
-            print(symbol)
+        if currRoot is None:
             decoded_text += dictionary[symbol]
             symbol = ""
+            currRoot = root
     return decoded_text
 
 
-def bts(root: Node, word: str) -> bool:
+def bts(root: Node, word: str) -> None:
     for bit in word:
         if bit == '0':
             root = root.left
@@ -95,9 +99,9 @@ def bts(root: Node, word: str) -> bool:
             root = root.right
 
     if root.left is None and root.right is None:
-        return True
+        return None
     else:
-        return False
+        return root
 
 
 def build_binary_tree(dictionary: dict) -> Node:
@@ -120,3 +124,13 @@ def build_binary_tree(dictionary: dict) -> Node:
 
     return root
 
+
+
+def write_text_to_file(text: str, output_file: str) -> bool:
+    try:
+        with open(output_file, "wb") as output_stream:
+            bitarray(text).tofile(output_stream)
+        return True
+    except OSError:
+        print("Failas nerastas")
+    return False

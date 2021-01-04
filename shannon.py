@@ -9,6 +9,7 @@ def shannon_encoder(inputFile: str, outputFile: str, chunk: int):
     # Skaitome teksta baitais ir grazina bitu str
     table_of_frequencies, word_list, padding = read_input_from_file(inputFile, chunk)
 
+
     # Sudarome tikimybiu lentele
     table_of_binary_values, lenCompressed = to_binary_table(table_of_frequencies, len(word_list))
     print(lenCompressed)
@@ -18,6 +19,9 @@ def shannon_encoder(inputFile: str, outputFile: str, chunk: int):
 
     # Surasome i bin faila
     write_binary_to_file(table_of_binary_values, compressed_text, lenCompressed, chunk, padding, outputFile)
+    print("encoded")
+
+
 
 
 def yield_from_file(stream, num_of_bytes=1024):
@@ -34,20 +38,21 @@ def read_input_from_file(fileName: str, chunkSize: int):
     tempBuffer = bitarray()
     words = []
     bits = ""
+    all = ""
     try:
         with open(fileName, "rb") as stream:
 
             bytesFromFile = yield_from_file(stream)
             for dataChunk in bytesFromFile:
                 tempBuffer.frombytes(dataChunk)
-                bits = tempBuffer.to01()
+                bits += tempBuffer.to01()
                 del tempBuffer[:]
-
                 while len(bits) > chunkSize:
                     word = bits[:chunkSize]
                     fill_frequency_table(word, dictionary)
                     words.append(word)
                     bits = bits[chunkSize:]
+                    all += word
 
             extraZeros = chunkSize - len(bits)
             if len(bits) != 0:
@@ -162,20 +167,26 @@ def write_binary_to_file(table: dict, text: str, text_len: int, chunkSize: int, 
                 tableDataToString += format(len(v), '08b')
                 tableDataToString += v
 
-
-            textPaddingSize = text_len % 8
+            textPaddingSize = 8 - (text_len % 8)
             tablePadding = get_padding_size(tableDataToString, Byte)
 
             wholeTable = tableDataToString + tablePadding * '0'
             tableSize = int((len(tableDataToString) + tablePadding) / Byte)
 
-            wholeText = text + (text_len % 8) * '0'
+            wholeText = text + textPaddingSize * '0'
+
 
             bitarray(f'{tableSize:016b}').tofile(file)  # writing table size to file
             bitarray(f'{chunkSize:08b}').tofile(file)  # writing chunk size to file
             bitarray(f'{tablePadding:08b}').tofile(file)  # writing chunk size to file
             bitarray(f'{symbolPaddingSize:08b}').tofile(file)  # writing chunk size to file
             bitarray(f'{textPaddingSize:08b}').tofile(file)  # writing chunk size to file
+            print("Lenteles dydis", tableSize)
+            print("Chunk dydis", chunkSize)
+            print("Lenteles paddingas ", tablePadding)
+            print("Simbolio paddingas ", symbolPaddingSize)
+            print("Teksto paddingas ", textPaddingSize)
+
             bitarray(wholeTable).tofile(file)  # writing table data to file
             bitarray(wholeText).tofile(file)  # writing file data to file
             return True
@@ -232,12 +243,13 @@ def read_from_bin(input_file: str):
                 # process data
 
             binary_table = data[:size_of_encoded_table * Byte-table_padding]
-            #print(binary_table)
+
 
             startOfText = size_of_encoded_table * Byte
 
             binary_text = data[startOfText:-text_padding_size]
-           # print(binary_text)
+
+            # print("be galo", binary_text)
 
             return binary_table, binary_text, chunk, symbol_padding_size
 
@@ -251,8 +263,20 @@ def shannon_decoder(inputFile, outputFile):
     decoded_table = data_to_dictionary(binary_table, chunk)
 
     decoded_text = data_to_text(binary_text, decoded_table)
+    #print(binary_text[-200:])
 
-    write_text_to_file(decoded_text[:-symbol_padding], outputFile)
+    if symbol_padding != 0:
+        write_text_to_file(decoded_text[:-symbol_padding], outputFile)
+        print("gavosi", decoded_text[-300:])
+        print("gavosi", len(decoded_text[:-symbol_padding])/8)
+    else:
+        write_text_to_file(decoded_text, outputFile)
+        # print("gavosi", decoded_text)
+
+
+
+
+
 
 
 def data_to_dictionary(bitText: str, chunk: int) -> dict:
@@ -323,5 +347,5 @@ def binary_to_char(bitText: str) -> str:
 
 
 if __name__ == '__main__':
-    shannon_encoder("test.txt", "testd.shn", 10)
-    shannon_decoder("testd.shn", "test2.txt")
+    shannon_encoder("black.bmp", "vb.shn", 11)
+    shannon_decoder("vb.shn", "black2.bmp")

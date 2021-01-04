@@ -6,61 +6,71 @@ Byte = 8
 
 
 def shannon_encoder(inputFile: str, outputFile: str, chunk: int):
-
     # Skaitome teksta baitais ir grazina bitu str
-    bitText = read_input_from_file(inputFile)
-
-    # Gauname teksto paddinga
-    padding = get_padding_size(bitText, chunk)
-
-    # Pridedame gale paddinga
-    bitText += padding * '0'
-
-    # Daliname teksta i smulkesnes dalis
-    word_list = text_to_chunks(bitText, chunk)
-
-    # Sudarome dazniu lentele
-    table_of_frequencies = frequency_table(word_list)
+    table_of_frequencies, word_list, padding = read_input_from_file(inputFile, chunk)
 
     # Sudarome tikimybiu lentele
-    table_of_binary_values = to_binary_table(table_of_frequencies, len(word_list))
+    table_of_binary_values, lenCompressed = to_binary_table(table_of_frequencies, len(word_list))
+    print(lenCompressed)
 
     # Suspaudziame teksta
     compressed_text = word_to_bin(word_list, table_of_binary_values)
 
     # Surasome i bin faila
-    write_binary_to_file(table_of_binary_values, compressed_text, chunk, padding, outputFile)
+    write_binary_to_file(table_of_binary_values, compressed_text, lenCompressed, chunk, padding, outputFile)
+
+
+def yield_from_file(stream, num_of_bytes=1024):
+    while True:
+        data = stream.read(num_of_bytes)
+        if not data:
+            break
+        yield data
 
 
 # Reads input file in bytes and returns binary string representation of text
-def read_input_from_file(filename: str) -> str:
+def read_input_from_file(fileName: str, chunkSize: int):
+    dictionary = {}
+    tempBuffer = bitarray()
+    words = []
     bits = ""
     try:
-        with open(filename, mode='rb') as input_stream:
-            while True:
-                dataByte = input_stream.read(1)
-                if not dataByte:
-                    break
-                bits += '{:08b}'.format(ord(dataByte))
+        with open(fileName, "rb") as stream:
 
-        return bits
+            bytesFromFile = yield_from_file(stream)
+            for dataChunk in bytesFromFile:
+                tempBuffer.frombytes(dataChunk)
+                bits = tempBuffer.to01()
+                del tempBuffer[:]
+
+                while len(bits) > chunkSize:
+                    word = bits[:chunkSize]
+                    fill_frequency_table(word, dictionary)
+                    words.append(word)
+                    bits = bits[chunkSize:]
+
+            extraZeros = chunkSize - len(bits)
+            if len(bits) != 0:
+                bits += (chunkSize - len(bits)) * '0'
+                fill_frequency_table(bits, dictionary)
+                words.append(bits)
+
+            sorted_tuples = sorted(dictionary.items(), key=lambda x: x[1], reverse=True)  # sorted list of tuples
+            sorted_probTable = {k: v for k, v in sorted_tuples}  # from list to dict
+
+            return sorted_probTable, words, extraZeros
+
+
     except OSError:
-        print("Failas nerastas.")
+        print("Failas nerastas")
 
 
 # Calculates frequencies of each symbol and sorts it
-def frequency_table(bitText: list) -> dict:
-    differentValues = set(bitText)
-    probTable = {}
-
-    for letter in differentValues:
-        p = bitText.count(letter)
-        probTable.update({letter: p})  # e.g. {'a':0.25}
-
-    sorted_tuples = sorted(probTable.items(), key=lambda x: x[1], reverse=True)  # sorted list of tuples
-    sorted_probTable = {k: v for k, v in sorted_tuples}  # from list to dict
-
-    return sorted_probTable
+def fill_frequency_table(word: str, dict):
+    if word in dict:
+        dict[word] += 1
+    else:
+        dict.update({word: 1})
 
 
 # Changes each symbol to a new value from dict
@@ -99,15 +109,17 @@ def int_to_bin(value: float, length: int, dataSize: int) -> str:
 
 
 # Frequency table to binary table
-def to_binary_table(probTable: dict, dataSize: int) -> dict:
+def to_binary_table(probTable: dict, dataSize: int):
     sum = 0
+    sizeOfText = 0
     binaryTable = {}
     for key, value in probTable.items():
         bit_len = length_of_bin_from_freq(value, dataSize)
         bits = int_to_bin(sum, bit_len, dataSize)
         binaryTable.update({key: bits})  # format(<the_integer>, "<0><width_of_string><format_specifier>")
         sum += value
-    return binaryTable
+        sizeOfText += value * bit_len
+    return binaryTable, sizeOfText
 
 
 # Text to binary
@@ -139,7 +151,7 @@ def text_to_chunks(bitText: str, chunkSize: int) -> list:
 
 
 # Write all info to binary file
-def write_binary_to_file(table: dict, text: str, chunkSize: int, padding: int, filename: str) -> bool:
+def write_binary_to_file(table: dict, text: str, text_len: int, chunkSize: int, symbolPaddingSize: int, filename: str) -> bool:
     try:
         with open(filename, mode='wb') as file:
 
@@ -150,18 +162,22 @@ def write_binary_to_file(table: dict, text: str, chunkSize: int, padding: int, f
                 tableDataToString += format(len(v), '08b')
                 tableDataToString += v
 
-            textWithPaddingSize = f'{padding:08b}' + text
-            textPadding = get_padding_size(textWithPaddingSize, Byte)
-            wholeText = f'{textPadding:08b}' + textPadding*"0" + textWithPaddingSize
 
+            textPaddingSize = text_len % 8
             tablePadding = get_padding_size(tableDataToString, Byte)
-            wholeTable = f'{tablePadding:08b}' + tablePadding * '0' + tableDataToString
+
+            wholeTable = tableDataToString + tablePadding * '0'
             tableSize = int((len(tableDataToString) + tablePadding) / Byte)
 
+            wholeText = text + (text_len % 8) * '0'
+
             bitarray(f'{tableSize:016b}').tofile(file)  # writing table size to file
-            bitarray(f'{chunkSize:08b}').tofile(file)   # writing chunk size to file
-            bitarray(wholeTable).tofile(file)     # writing table data to file
-            bitarray(wholeText).tofile(file)    # writing file data to file
+            bitarray(f'{chunkSize:08b}').tofile(file)  # writing chunk size to file
+            bitarray(f'{tablePadding:08b}').tofile(file)  # writing chunk size to file
+            bitarray(f'{symbolPaddingSize:08b}').tofile(file)  # writing chunk size to file
+            bitarray(f'{textPaddingSize:08b}').tofile(file)  # writing chunk size to file
+            bitarray(wholeTable).tofile(file)  # writing table data to file
+            bitarray(wholeText).tofile(file)  # writing file data to file
             return True
 
     except OSError:
@@ -169,11 +185,10 @@ def write_binary_to_file(table: dict, text: str, chunkSize: int, padding: int, f
     return False
 
 
-def write_text_to_file(output_file: str, text: str) -> bool:
-
+def write_text_to_file(text: str, output_file: str) -> bool:
     try:
         with open(output_file, "wb") as output_stream:
-            output_stream.write(text)
+            bitarray(text).tofile(output_stream)
         return True
     except OSError:
         print("Failas nerastas")
@@ -196,10 +211,16 @@ def read_from_bin(input_file: str):
             # read the size of encoded table 2B 16 bits
 
             size_of_encoded_table = int.from_bytes(input_stream.read(2), "big")
-
             chunk = int.from_bytes(input_stream.read(1), "big")
-
             table_padding = int.from_bytes(input_stream.read(1), "big")
+            symbol_padding_size = int.from_bytes(input_stream.read(1), "big")
+            text_padding_size = int.from_bytes(input_stream.read(1), "big")
+
+            # print("Lenteles dydis", size_of_encoded_table)
+            # print("Chunk dydis", chunk)
+            # print("Lenteles paddingas ", table_padding)
+            # print("Simbolio paddingas ", symbol_padding_size)
+            # print("Teksto paddingas ", text_padding_size)
 
             data = ""
 
@@ -210,29 +231,28 @@ def read_from_bin(input_file: str):
                 data += '{:08b}'.format(ord(dataByte))
                 # process data
 
-            binary_table = data[table_padding:size_of_encoded_table * Byte]
+            binary_table = data[:size_of_encoded_table * Byte-table_padding]
+            #print(binary_table)
 
-            binary_text = data[size_of_encoded_table * Byte:]
+            startOfText = size_of_encoded_table * Byte
 
-            return binary_table, binary_text, chunk
+            binary_text = data[startOfText:-text_padding_size]
+           # print(binary_text)
+
+            return binary_table, binary_text, chunk, symbol_padding_size
 
     except OSError:
         print("Failas nerastas.")
 
 
-def shannon_decoder(outputFile):
-    binary_table, binary_text, chunk = read_from_bin("encoded.shannon")
+def shannon_decoder(inputFile, outputFile):
+    binary_table, binary_text, chunk, symbol_padding = read_from_bin(inputFile)
 
     decoded_table = data_to_dictionary(binary_table, chunk)
 
+    decoded_text = data_to_text(binary_text, decoded_table)
 
-    textPadding = int(binary_text[0:Byte], 2)
-    symbolPadding = int(binary_text[Byte:2 * Byte], 2)
-
-
-    decoded_text = data_to_text(binary_text[2 * Byte + textPadding:], decoded_table)
-
-    write_text_to_file(decoded_text, outputFile)
+    write_text_to_file(decoded_text[:-symbol_padding], outputFile)
 
 
 def data_to_dictionary(bitText: str, chunk: int) -> dict:
@@ -303,5 +323,5 @@ def binary_to_char(bitText: str) -> str:
 
 
 if __name__ == '__main__':
-    shannon_encoder("flowers.bmp", "encoded.shanon", 8)
-    shannon_decoder("flowers2.bmp")
+    shannon_encoder("test.txt", "testd.shn", 10)
+    shannon_decoder("testd.shn", "test2.txt")
